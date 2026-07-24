@@ -1,0 +1,58 @@
+:root {
+  color-scheme: light dark;
+}
+
+body {
+  font-family: system-ui, sans-serif;
+  max-width: 720px;
+  margin-inline: auto;
+  padding: 2rem 1rem;
+  line-height: 1.5;
+}
+
+header p {
+  opacity: 0.75;
+}
+
+#demo-container {
+  height: 240px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-block: 1.5rem;
+  font-family: ui-monospace, monospace;
+  color: white;
+}
+
+#pipeline-panel h2 {
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.6;
+  margin-bottom: 0.5rem;
+}
+
+#pipeline-panel dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem 1rem;
+  margin: 0 0 1.5rem;
+}
+
+#pipeline-panel dt {
+  font-weight: 600;
+}
+
+#pipeline-panel dd {
+  margin: 0;
+  font-family: ui-monospace, monospace;
+}
+
+#error-banner {
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+  background: #fee2e2;
+  color: #7f1d1d;
+  margin-bottom: 1.5rem;
+}

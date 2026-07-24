@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Waypoint</title>
+  <link rel="stylesheet" href="index.css">
+</head>
+<body>
+  <header>
+    <h1>Waypoint</h1>
+    <p>
+      A fixture app for
+      <a href="https://github.com/centuryglass/terraform-ecs-gitops">terraform-ecs-gitops</a>,
+      a reference implementation of a Terraform + ECS Fargate + GitOps deployment
+      pipeline. The infrastructure is the point — this page exists to prove it's
+      actually wired up correctly, end to end.
+    </p>
+  </header>
+
+  <main>
+    <section id="demo-container" aria-label="Generative visual seeded from the deployed commit"></section>
+
+    <section id="pipeline-panel" aria-label="Live deployment status">
+      <p id="error-banner" role="alert" hidden></p>
+
+      <h2>Build</h2>
+      <dl>
+        <dt>Commit</dt><dd id="build-sha">—</dd>
+        <dt>Image tag</dt><dd id="build-image-tag">—</dd>
+        <dt>Built</dt><dd id="build-time">—</dd>
+        <dt>Go version</dt><dd id="build-go-version">—</dd>
+      </dl>
+
+      <h2>Runtime</h2>
+      <dl>
+        <dt>Task ID</dt><dd id="runtime-task-id">—</dd>
+        <dt>Availability zone</dt><dd id="runtime-az">—</dd>
+        <dt>Hostname</dt><dd id="runtime-hostname">—</dd>
+        <dt>Uptime</dt><dd id="runtime-uptime">—</dd>
+        <dt>Requests served</dt><dd id="runtime-request-count">—</dd>
+      </dl>
+    </section>
+  </main>
+
+  <script src="demo.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
