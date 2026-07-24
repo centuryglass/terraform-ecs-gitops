@@ -1,0 +1,100 @@
+name: Terraform Plan
+
+on:
+  pull_request:
+    paths:
+      - 'infra/**'
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write      # Required for AWS OIDC authentication
+  contents: read
+  pull-requests: write # Required to post the plan comment
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.PLAN_ROLE_ARN_GITHUB }}
+          aws-region: us-east-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false # Prevents stdout pollution when saving plan
+
+      - name: Terraform Init, Format, Validate
+        working-directory: ./infra/live
+        run: |
+          terraform init
+          terraform fmt -recursive -diff
+          terraform validate
+
+      - name: Terraform Plan
+        id: plan
+        working-directory: ./infra/live
+        run: |
+          terraform plan -no-color -out=tfplan
+          terraform show -no-color tfplan > plan.txt
+        continue-on-error: true
+
+      - name: Upload plan output as an artifact
+        if: github.event_name != 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-${{ github.event.pull_request.number }}
+          path: infra/live/plan.txt
+          retention-days: 5
+
+      - name: Post plan as PR comment
+        if: github.event_name != 'workflow_dispatch'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = 'infra/live/plan.txt';
+            let planText = fs.readFileSync(path, 'utf8');
+
+            // GitHub comments cap out around 65536 chars; leave headroom.
+            const maxLen = 60000;
+            if (planText.length > maxLen) {
+              planText = planText.slice(0, maxLen) + '\n\n... (truncated, see workflow artifact for full plan)';
+            }
+
+            const body = [
+              '### Terraform Plan',
+              `Result: \`${{ steps.plan.outcome }}\``,
+              '',
+              '<details><summary>Click to expand plan output</summary>',
+              '',
+              '```hcl',
+              planText,
+              '```',
+              '',
+              '</details>'
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+            
+      - name: Debug Print on workflow test
+        if: github.event_name == 'workflow_dispatch'
+        id: debug-print
+        working-directory: ./infra/live
+        run: |
+          cat plan.txt
+        continue-on-error: true
+
+      - name: Fail job if plan failed
+        if: steps.plan.outcome == 'failure'
+        run: exit 1

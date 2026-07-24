@@ -1,0 +1,15 @@
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Personal local config (see infra/live/terraform.tfvars header comment)
+infra/live/terraform.tfvars

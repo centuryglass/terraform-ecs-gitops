@@ -1,0 +1,38 @@
+name: Deploy Frontend
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'webapp/**'
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write   # Required for AWS OIDC authentication
+  contents: read
+
+jobs:
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.FRONTEND_DEPLOY_ROLE_ARN_GITHUB }}
+          aws-region: us-east-1
+
+      - name: Sync webapp to S3
+        run: |
+          aws s3 sync ./webapp/ s3://${{ vars.FRONTEND_BUCKET_NAME }}/ \
+            --delete \
+            --exclude "*.map"
+
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/*"
