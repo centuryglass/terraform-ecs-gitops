@@ -88,13 +88,12 @@ jobs:
         if: github.event_name != 'workflow_dispatch' || inputs.open_pr
         uses: peter-evans/create-pull-request@v6
         with:
-          # Repo (or org) has "Allow GitHub Actions to create and approve
-          # pull requests" disabled, so the default GITHUB_TOKEN can't open
-          # a PR. As a workaround, I'm using a PAT instead. This isn't ideal,
-          # but since the repo is private and the PAT expires soon it's an
-          # acceptable risk.
-          token: ${{ secrets.PAT_FOR_PR_CREATION }}
-
+          # No `token:` override — uses the default GITHUB_TOKEN, which can
+          # open PRs now that the repo allows Actions to create and approve
+          # them. Note this PR's `pull_request` event won't auto-trigger
+          # infra-plan.yaml: GitHub doesn't fire workflows off GITHUB_TOKEN's
+          # own actions, to prevent recursive runs. Run infra-plan manually
+          # (workflow_dispatch) against this branch to get a plan comment.
           commit-message: "Deploy ${{ env.IMAGE_TAG }}"
           branch: deploy-${{ env.IMAGE_TAG }}
           base: ${{ env.BRANCH_NAME }}
@@ -104,6 +103,7 @@ jobs:
 
             ${{ env.PREV_TAG && format('**App changes:** {0}/{1}/compare/{2}...{3}', github.server_url, github.repository, env.PREV_TAG, env.IMAGE_TAG) || '_No previous deployed tag found, nothing to diff against._' }}
 
-            The Terraform plan for this change will be posted as a comment
-            on this PR by the `infra-plan` workflow, generated with the
-            read-only plan role.
+            This PR won't get an automatic `terraform plan` comment — it's
+            opened with the default `GITHUB_TOKEN`, which doesn't trigger
+            other workflows. Run `infra-plan` manually against this branch
+            (Actions → Terraform Plan → Run workflow) before merging.
