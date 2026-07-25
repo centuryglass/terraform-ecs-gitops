@@ -559,7 +559,7 @@ data "aws_iam_policy_document" "github_oidc_plan_assume" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = [format("repo:%s:pull_request", var.github_repo)]
+      values   = ["${var.github_oidc_subject_prefix}:pull_request"]
     }
   }
 }
@@ -599,7 +599,7 @@ data "aws_iam_policy_document" "github_oidc_push_assume" {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
       values = [
-        format("repo:%s:ref:refs/heads/main", var.github_repo)
+        "${var.github_oidc_subject_prefix}:ref:refs/heads/main"
       ]
     }
 
@@ -679,7 +679,7 @@ data "aws_iam_policy_document" "github_oidc_frontend_deploy_assume" {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
       values = [
-        format("repo:%s:ref:refs/heads/main", var.github_repo)
+        "${var.github_oidc_subject_prefix}:ref:refs/heads/main"
       ]
     }
 
@@ -761,7 +761,7 @@ data "aws_iam_policy_document" "github_oidc_apply_assume" {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
       values = [
-        format("repo:%s:ref:refs/heads/main", var.github_repo)
+        "${var.github_oidc_subject_prefix}:ref:refs/heads/main"
       ]
     }
 
