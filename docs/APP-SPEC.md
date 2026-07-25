@@ -323,16 +323,19 @@ apply into new state rather than trying to migrate.
 ## 9. Before making the repository public
 
 - **`backend.tf` hardcodes the AWS account ID** in the bucket name. Terraform
-  backend blocks cannot interpolate variables — this is a known limitation, not
-  an oversight. Use a partial backend config and pass `-backend-config=` flags
-  from CI, or accept a committed bucket name for an account whose ID you're
-  content to publish. Account IDs are not secrets, but they are unnecessary
-  attack-surface disclosure and worth removing on principle.
+  backend blocks can't interpolate variables, so this isn't fixable without a
+  partial backend config injected via `-backend-config=` flags at init time —
+  considered and deliberately not done. The account ID already appears in
+  plaintext throughout the `terraform plan` output posted publicly by
+  `infra-plan.yaml` on every deploy PR (S3 bucket names, IAM policy
+  documents — anything built with `format()` rather than server-assigned, so
+  it renders even on a from-scratch `apply`). Protecting it in `backend.tf`
+  alone while every deploy PR exposes it anyway would be inconsistent effort
+  for information AWS doesn't treat as secret in the first place. If this
+  ever needs revisiting, the real lever is redacting the account ID out of
+  what `infra-plan.yaml` posts, not `backend.tf`.
 - `alert_email` default in `variables.tf` is a personal address. Make it a
   required variable with no default.
-- Remove the `# TODO: remove after testing` branch entries (`test-deploy`) from
-  the OIDC trust policies before publishing — a public repo advertising which
-  branches can assume which roles should advertise the intended set only.
 - Confirm no planning documents referencing the original exercise, company, or
   reviewers are carried over.
 - Initialize as a fresh repository — new directory, copy files, `git init`.

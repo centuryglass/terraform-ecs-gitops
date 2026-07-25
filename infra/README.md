@@ -19,8 +19,14 @@ Initial environment setup needs to be executed locally via command line.
     terraform apply
     ```
     Validate changes and enter "yes" to confirm.
-5. For the service to initialize properly you'll need to push an initial build image to ECR. Once terraform prints that the ECR resource has been created, navigate to it in the AWS web UI, click the "View push commands" button, and follow instructions to push a local build of the Docker image. TODO: eliminate this step!
-6. After the resources have been created, terraform should print out values for "apply_role_arn_github", "plan_role_arn_github", and "push_role_arn_github". Add these values to this GitHub repository's GitHub Actions variables.
+5. For the service to initialize properly you'll need to push an initial build image to ECR. Once terraform prints that the ECR resource has been created, navigate to it in the AWS web UI, click the "View push commands" button, and follow instructions to push a local build of the Docker image, tagged to match whatever is currently in `infra/live/image.auto.tfvars` (or update that file to match the tag you push). TODO: eliminate this step!
+6. After the resources have been created, terraform will print output values. Add all of the following to this GitHub repository's Actions variables (Settings → Secrets and variables → Actions → Variables) — the workflows read these by name, and a missing one just fails silently as an empty string rather than an obvious error:
+   - `plan_role_arn_github` → `PLAN_ROLE_ARN_GITHUB`
+   - `push_role_arn_github` → `PUSH_ROLE_ARN_GITHUB`
+   - `apply_role_arn_github` → `APPLY_ROLE_ARN_GITHUB`
+   - `frontend_deploy_role_arn_github` → `FRONTEND_DEPLOY_ROLE_ARN_GITHUB`
+   - `frontend_bucket_name` → `FRONTEND_BUCKET_NAME`
+   - `cloudfront_distribution_id` → `CLOUDFRONT_DISTRIBUTION_ID`
 
 ## Ongoing Infrastructure Changes
 After the initial setup, PRs modifying `infra/live` that target `main` can be used to automatically make infrastructure changes. When an infrastructure PR is opened, the GitHub Actions infra-plan task will run `terraform plan` against the proposed changes. If the changes are valid, it will post the plan output to the PR to show exactly how the changes will affect the environment.

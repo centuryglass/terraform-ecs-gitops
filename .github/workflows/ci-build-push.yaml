@@ -6,8 +6,6 @@ on:
       - main
     paths:
       - 'Dockerfile'
-      - 'stack.yaml'
-      - 'src/**'
       - 'app/**'
   workflow_dispatch:
     inputs:
@@ -37,6 +35,7 @@ jobs:
 
           echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_ENV
           echo "BRANCH_NAME=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
+          echo "BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_ENV
 
           # Capture the currently-deployed tag (if any) before overwriting,
           # so the PR body can link a diff between the two.
@@ -56,16 +55,6 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
         
-      - name: Free disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /opt/hostedtoolcache/CodeQL
-          sudo rm -rf /usr/local/.ghcup
-          sudo docker image prune -af
-          df -h
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -77,6 +66,10 @@ jobs:
           context: .
           push: true
           tags: ${{ env.ECR_REGISTRY }}/waypoint-build-imgs:${{ env.IMAGE_TAG }}
+          build-args: |
+            GIT_SHA=${{ github.sha }}
+            IMAGE_TAG=${{ env.IMAGE_TAG }}
+            BUILD_TIME=${{ env.BUILD_TIME }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
