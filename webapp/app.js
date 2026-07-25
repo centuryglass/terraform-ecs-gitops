@@ -47,6 +47,7 @@ async function loadBuildInfo() {
       `Backend unreachable — /api/build failed (${err.message}). ` +
       "The routing chain from CloudFront through to the ECS task isn't working."
     );
+    renderOfflineState(document.getElementById("demo-container"));
   }
 }
 
