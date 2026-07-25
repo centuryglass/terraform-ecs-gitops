@@ -822,9 +822,14 @@ data "aws_iam_policy_document" "github_apply_permissions" {
   }
 
   statement {
-    sid       = "AlertingAccess"
-    effect    = "Allow"
-    actions   = ["sns:*", "cloudwatch:PutMetricAlarm", "cloudwatch:DeleteAlarms", "cloudwatch:DescribeAlarms"]
+    sid    = "AlertingAccess"
+    effect = "Allow"
+    actions = [
+      "sns:*", "cloudwatch:PutMetricAlarm",
+      "cloudwatch:DeleteAlarms",
+      "cloudwatch:ListTagsForResource",
+      "cloudwatch:DescribeAlarms"
+    ]
     resources = ["*"]
   }
 
@@ -959,6 +964,7 @@ data "aws_iam_policy_document" "github_apply_permissions" {
       "s3:GetBucketPublicAccessBlock",
       "s3:PutBucketOwnershipControls",
       "s3:GetBucketOwnershipControls",
+      "s3:GetBucketTagging",
       "s3:ListBucket",
       "s3:DeleteBucket",
     ]
