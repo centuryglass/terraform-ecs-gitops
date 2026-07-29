@@ -46,10 +46,26 @@ data "aws_iam_policy_document" "github_oidc_plan_assume" {
       variable = "token.actions.githubusercontent.com:aud"
       values   = ["sts.amazonaws.com"]
     }
+    # Because the plan job references `environment: prod`, GitHub rewrites the
+    # sub claim to the environment form (`...:environment:prod`) — it can no
+    # longer carry `:pull_request`. So we pin the repo+environment via sub, then
+    # restore the PR scoping with the dedicated claims: event_name = pull_request
+    # and base_ref = main. This keeps the read-only plan role usable only by
+    # PRs into main, and not by the deploy jobs that share the same sub.
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["${var.github_oidc_subject_prefix}:pull_request"]
+      values   = ["${var.github_oidc_subject_prefix}:environment:prod"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:event_name"
+      values   = ["pull_request"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:base_ref"
+      values   = ["main"]
     }
   }
 }
@@ -85,11 +101,15 @@ data "aws_iam_policy_document" "github_oidc_push_assume" {
       values   = ["sts.amazonaws.com"]
     }
 
+    # All four AWS reusables reference `environment: prod`, so the sub claim is
+    # the environment form for the deploy roles too (it no longer carries the
+    # branch). The branch pin comes from job_workflow_ref below, which ends in
+    # `@refs/heads/main` and only ever resolves that way on a push to main.
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
       values = [
-        "${var.github_oidc_subject_prefix}:ref:refs/heads/main"
+        "${var.github_oidc_subject_prefix}:environment:prod"
       ]
     }
 
@@ -169,7 +189,7 @@ data "aws_iam_policy_document" "github_oidc_frontend_deploy_assume" {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
       values = [
-        "${var.github_oidc_subject_prefix}:ref:refs/heads/main"
+        "${var.github_oidc_subject_prefix}:environment:prod"
       ]
     }
 
@@ -251,7 +271,7 @@ data "aws_iam_policy_document" "github_oidc_apply_assume" {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
       values = [
-        "${var.github_oidc_subject_prefix}:ref:refs/heads/main"
+        "${var.github_oidc_subject_prefix}:environment:prod"
       ]
     }
 
