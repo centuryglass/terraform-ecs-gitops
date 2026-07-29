@@ -10,6 +10,13 @@ on:
         description: GitHub Environment holding the GCP config (WIF provider, SAs, project, region).
         required: true
         type: string
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: GitHub Environment to run against.
+        required: true
+        type: string
+        default: dev
 
 permissions:
   id-token: write       # WIF
