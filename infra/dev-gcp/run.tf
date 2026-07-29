@@ -6,7 +6,7 @@ resource "google_artifact_registry_repository" "app" {
   location      = var.region
   repository_id = "waypoint-imgs"
   format        = "DOCKER"
-  description   = "Container images for the waypoint live-demo app"
+  description   = "Container images for the Waypoint live-demo app"
 
   # Bound storage cost (the one non-zero line in this stack): keep the 5 most
   # recent versions, prune untagged layers after a week.

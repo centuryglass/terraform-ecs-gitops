@@ -20,15 +20,14 @@ func main() {
 		port = "8080"
 	}
 
-	meta := fetchTaskMetadata()
-	hostname, _ := os.Hostname()
+	meta := fetchRuntimeMetadata()
 	startTime := time.Now()
 	var requestCount int64
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", healthzHandler)
 	mux.HandleFunc("GET /api/build", buildHandler)
-	mux.HandleFunc("GET /api/runtime", runtimeHandler(meta, hostname, startTime, &requestCount))
+	mux.HandleFunc("GET /api/runtime", runtimeHandler(meta, startTime, &requestCount))
 
 	handler := countingMiddleware(&requestCount, loggingMiddleware(mux))
 

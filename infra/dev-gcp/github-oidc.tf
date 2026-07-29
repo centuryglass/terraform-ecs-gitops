@@ -183,15 +183,6 @@ resource "google_service_account_iam_member" "gha_apply_runtime_actas" {
   member             = "serviceAccount:${google_service_account.gha_apply.email}"
 }
 
-<<<<<<< HEAD
-=======
-resource "google_storage_bucket_iam_member" "gha_apply_state" {
-  bucket = local.state_bucket
-  role   = "roles/storage.objectUser"
-  member = "serviceAccount:${google_service_account.gha_apply.email}"
-}
-
->>>>>>> main
 # ACCOUNT-WIDE GRANT — flagged for review.
 # The budget (budget.tf) is a billing-account resource, so managing it requires
 # a role on the whole billing account, not just this project. This mirrors the
