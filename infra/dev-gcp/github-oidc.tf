@@ -104,9 +104,19 @@ resource "google_project_iam_member" "gha_plan_viewer" {
   member  = "serviceAccount:${google_service_account.gha_plan.email}"
 }
 
+<<<<<<< HEAD
 # State-bucket access for the plan/apply SAs is granted in the bootstrap stack
 # (where the bucket lives), not here — so this CI-applied stack never has to
 # read the bucket's IAM policy.
+=======
+# GCS backend writes a lock object even during plan, so objectUser (read + the
+# lock write), not just viewer.
+resource "google_storage_bucket_iam_member" "gha_plan_state" {
+  bucket = local.state_bucket
+  role   = "roles/storage.objectUser"
+  member = "serviceAccount:${google_service_account.gha_plan.email}"
+}
+>>>>>>> main
 
 # Required because the provider runs with user_project_override = true: every
 # API call attaches an X-Goog-User-Project header, and the API checks
@@ -183,6 +193,15 @@ resource "google_service_account_iam_member" "gha_apply_runtime_actas" {
   member             = "serviceAccount:${google_service_account.gha_apply.email}"
 }
 
+<<<<<<< HEAD
+=======
+resource "google_storage_bucket_iam_member" "gha_apply_state" {
+  bucket = local.state_bucket
+  role   = "roles/storage.objectUser"
+  member = "serviceAccount:${google_service_account.gha_apply.email}"
+}
+
+>>>>>>> main
 # ACCOUNT-WIDE GRANT — flagged for review.
 # The budget (budget.tf) is a billing-account resource, so managing it requires
 # a role on the whole billing account, not just this project. This mirrors the

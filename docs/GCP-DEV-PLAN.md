@@ -4,7 +4,7 @@
 
 ## Why this exists
 
-The AWS stack (`infra/prod-aws/`) is the enterprise-grade *reference* deployment,
+The AWS stack (`infra/live/`) is the enterprise-grade *reference* deployment,
 but it costs ~$69/mo to run always-on (dominated by ~$44 for three interface
 VPC endpoints + ~$16 ALB + ~$9 Fargate) — indefensible for a portfolio piece.
 

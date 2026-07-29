@@ -77,6 +77,3 @@ For a larger organization, a more comprehensive logging solution aggregating mul
 
 ### Load balancing: Amazon Application Load Balancer
 Load balancing at this scale really only requires routing traffic to the single container, and gracefully handling the transition when deploying updates. ALB handles that simply, but is versatile enough to support more complicated configurations in the future. Alternatives are really only relevant in niche cases that don't apply here.
-
----
-
