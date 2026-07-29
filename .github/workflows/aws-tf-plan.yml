@@ -1,0 +1,23 @@
+# Caller: on a PR into main touching the AWS stack, post a terraform plan.
+# (Note: the auto image-bump PR is opened with GITHUB_TOKEN and won't trigger
+# this — dispatch it manually against that branch. Human PRs trigger normally.)
+name: aws-tf-plan
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'infra/prod-aws/**'
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  call:
+    uses: ./.github/workflows/reusable-aws-tf-plan.yml
+    with:
+      environment: prod
+    secrets: inherit

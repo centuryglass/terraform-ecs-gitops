@@ -11,8 +11,8 @@ override.tf.json
 .terraformrc
 terraform.rc
 
-# Personal local config (see infra/live/terraform.tfvars header comment)
-infra/live/terraform.tfvars
+# Personal local config (see header comment in either file)
+infra/prod-aws/terraform.tfvars
 infra/dev-gcp/terraform.tfvars
 
 # google-github-actions/auth writes these federation-config files into the

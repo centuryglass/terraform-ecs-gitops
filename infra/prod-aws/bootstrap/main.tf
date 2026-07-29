@@ -65,7 +65,7 @@ resource "aws_s3_bucket_public_access_block" "terraform_state" {
 #----------------------------------------------------------
 
 resource "local_file" "backend_config" {
-  filename = "${path.module}/../live/backend.tf"
+  filename = "${path.module}/../backend.tf"
   content  = <<-EOF
 terraform {
   backend "s3" {

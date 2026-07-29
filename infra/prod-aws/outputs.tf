@@ -5,22 +5,22 @@ output "alb_dns_name" {
 }
 
 output "ecr_repository_url" {
-  description = "Push images here from ci-build-push.yml."
+  description = "Push images here from aws-build-push. Repo name (last path segment) is the prod Environment var ECR_REPO."
   value       = aws_ecr_repository.container_registry.repository_url
 }
 
 output "plan_role_arn_github" {
-  description = "Set as a GitHub repo action variable to use in infra-plan.yml."
+  description = "Set as the prod GitHub Environment variable ROLE_PLAN (used by reusable-aws-tf-plan)."
   value       = aws_iam_role.github_plan.arn
 }
 
 output "push_role_arn_github" {
-  description = "Set as a GitHub repo action variable to use in ci-build-push.yml."
+  description = "Set as the prod GitHub Environment variable ROLE_PUSH (used by reusable-aws-build-push)."
   value       = aws_iam_role.github_push.arn
 }
 
 output "apply_role_arn_github" {
-  description = "Set as a GitHub repo action variable infra-apply.yml."
+  description = "Set as the prod GitHub Environment variable ROLE_APPLY (used by reusable-aws-tf-apply)."
   value       = aws_iam_role.github_apply.arn
 }
 
@@ -47,6 +47,6 @@ output "frontend_bucket_name" {
 
 
 output "frontend_deploy_role_arn_github" {
-  description = "Set as a GitHub repo action variable to use in ci-build-frontend.yaml."
+  description = "Set as the prod GitHub Environment variable ROLE_FRONTEND (used by reusable-aws-frontend)."
   value       = aws_iam_role.github_frontend_deploy.arn
 }

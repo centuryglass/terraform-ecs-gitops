@@ -147,7 +147,7 @@ an image-tag bump PR, refresh and watch the commit SHA change.
 pass them via `-ldflags "-X main.gitSHA=$GIT_SHA ..."`. Provide sensible
 defaults (`dev`, `unknown`) so a bare `docker build` still works.
 
-**`ci-build-push.yaml`:** add a `build-args:` block to the
+**`reusable-aws-build-push.yml`:** add a `build-args:` block to the
 `docker/build-push-action` step supplying `${{ github.sha }}` and the
 already-computed short SHA. This is the one workflow change the app requires;
 it's additive and doesn't alter the existing tagging or PR-opening logic.
@@ -308,7 +308,7 @@ touching any of these identifiers again:
   container name also appears in `aws_ecs_service.load_balancer.container_name`,
   and a mismatch there is a deploy-time failure, not a plan-time one
 - The ECR repository name also appears in the `tags:` of the build step in
-  `ci-build-push.yaml`
+  `reusable-aws-build-push.yml`
 - `variables.tf`'s `github_repo` default must match wherever this actually
   gets published, or the OIDC trust policies won't authorize any workflow
 - README, and the removal of `package.yaml`, `*.cabal`, `stack.yaml*`,
@@ -327,13 +327,13 @@ apply into new state rather than trying to migrate.
   partial backend config injected via `-backend-config=` flags at init time —
   considered and deliberately not done. The account ID already appears in
   plaintext throughout the `terraform plan` output posted publicly by
-  `infra-plan.yaml` on every deploy PR (S3 bucket names, IAM policy
+  `aws-tf-plan.yaml` on every deploy PR (S3 bucket names, IAM policy
   documents — anything built with `format()` rather than server-assigned, so
   it renders even on a from-scratch `apply`). Protecting it in `backend.tf`
   alone while every deploy PR exposes it anyway would be inconsistent effort
   for information AWS doesn't treat as secret in the first place. If this
   ever needs revisiting, the real lever is redacting the account ID out of
-  what `infra-plan.yaml` posts, not `backend.tf`.
+  what `aws-tf-plan.yaml` posts, not `backend.tf`.
 - `alert_email` default in `variables.tf` is a personal address. Make it a
   required variable with no default.
 - Confirm no planning documents referencing the original exercise, company, or

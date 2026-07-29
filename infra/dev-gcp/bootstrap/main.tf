@@ -1,6 +1,6 @@
 # Bootstraps the GCS bucket that holds Terraform state for the GCP "live demo"
-# stack (infra/dev-gcp). GCP-side analog of infra/bootstrap. Applied manually,
-# once — not part of CI. Re-run only if the state bucket needs to change.
+# stack (infra/dev-gcp). GCP-side analog of infra/prod-aws/bootstrap. Applied
+# manually, once, not part of CI. Re-run only if the state bucket needs to change.
 
 #----------------------------------------------------------
 # Basic config

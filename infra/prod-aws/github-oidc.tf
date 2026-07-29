@@ -97,7 +97,7 @@ data "aws_iam_policy_document" "github_oidc_push_assume" {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:job_workflow_ref"
       values = [
-        format("%s/.github/workflows/ci-build-push.yaml@refs/heads/main", var.github_repo)
+        format("%s/.github/workflows/reusable-aws-build-push.yml@refs/heads/main", var.github_repo)
       ]
     }
   }
@@ -177,7 +177,7 @@ data "aws_iam_policy_document" "github_oidc_frontend_deploy_assume" {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:job_workflow_ref"
       values = [
-        format("%s/.github/workflows/push-frontend.yaml@refs/heads/main", var.github_repo)
+        format("%s/.github/workflows/reusable-aws-frontend.yml@refs/heads/main", var.github_repo)
       ]
     }
   }
@@ -259,7 +259,7 @@ data "aws_iam_policy_document" "github_oidc_apply_assume" {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:job_workflow_ref"
       values = [
-        format("%s/.github/workflows/infra-apply.yaml@refs/heads/main", var.github_repo)
+        format("%s/.github/workflows/reusable-aws-tf-apply.yml@refs/heads/main", var.github_repo)
       ]
     }
   }

@@ -1,0 +1,21 @@
+# Caller: on a main-branch webapp change, deploy static frontend to S3 +
+# invalidate CloudFront.
+name: aws-frontend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'webapp/**'
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  call:
+    uses: ./.github/workflows/reusable-aws-frontend.yml
+    with:
+      environment: prod
+    secrets: inherit
