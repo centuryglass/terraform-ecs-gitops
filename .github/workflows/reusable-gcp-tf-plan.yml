@@ -1,0 +1,87 @@
+# Reusable: terraform plan for the GCP stack, posted as a PR comment.
+name: reusable-gcp-tf-plan
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+
+permissions:
+  id-token: write      # WIF
+  contents: read
+  pull-requests: write # post the plan comment
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.SA_PLAN }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform Init, Format, Validate
+        working-directory: ./${{ vars.TF_DIR }}
+        run: |
+          terraform init
+          terraform fmt -recursive -diff
+          terraform validate
+
+      - name: Terraform Plan
+        id: plan
+        working-directory: ./${{ vars.TF_DIR }}
+        run: |
+          terraform plan -no-color -out=tfplan
+          terraform show -no-color tfplan > plan.txt
+        continue-on-error: true
+
+      - name: Upload plan output as an artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-gcp-${{ github.event.pull_request.number }}
+          path: ${{ vars.TF_DIR }}/plan.txt
+          retention-days: 5
+
+      - name: Post plan as PR comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = `${{ vars.TF_DIR }}/plan.txt`;
+            let planText = fs.readFileSync(path, 'utf8');
+            const maxLen = 60000;
+            if (planText.length > maxLen) {
+              planText = planText.slice(0, maxLen) + '\n\n... (truncated, see workflow artifact for full plan)';
+            }
+            const body = [
+              '### Terraform Plan (GCP / ${{ inputs.environment }})',
+              `Result: \`${{ steps.plan.outcome }}\``,
+              '',
+              '<details><summary>Click to expand plan output</summary>',
+              '',
+              '```hcl',
+              planText,
+              '```',
+              '',
+              '</details>'
+            ].join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+
+      - name: Fail job if plan failed
+        if: steps.plan.outcome == 'failure'
+        run: exit 1

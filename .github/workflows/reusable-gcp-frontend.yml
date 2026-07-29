@@ -1,0 +1,36 @@
+# Reusable: deploy the static frontend to Firebase Hosting (webapp/ + the
+# /api/** rewrite in firebase.json). No Terraform, no infra access.
+name: reusable-gcp-frontend
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+
+permissions:
+  id-token: write  # WIF
+  contents: read
+
+jobs:
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Exports GOOGLE_APPLICATION_CREDENTIALS, which firebase-tools uses for
+      # service-account auth.
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.SA_FRONTEND }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Deploy to Firebase Hosting
+        run: npx --yes firebase-tools@latest deploy --only hosting --project ${{ vars.GCP_PROJECT }} --non-interactive
