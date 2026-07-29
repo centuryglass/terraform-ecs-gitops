@@ -32,7 +32,7 @@ provider "aws" {
 
 resource "aws_resourcegroups_group" "waypoint_web_group" {
   name        = format("waypoint-web-group%s", local.instance_suffix)
-  description = "Resource group for all waypoint-web infrastructure"
+  description = "Resource group for all waypoint infrastructure"
 
   resource_query {
     query = jsonencode({
