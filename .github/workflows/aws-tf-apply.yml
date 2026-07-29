@@ -1,0 +1,21 @@
+# Caller: on a main-branch change to the AWS stack, terraform apply (rolls the
+# ECS service to the image bumped by the merged deploy PR).
+name: aws-tf-apply
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'infra/prod-aws/**'
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  call:
+    uses: ./.github/workflows/reusable-aws-tf-apply.yml
+    with:
+      environment: prod
+    secrets: inherit

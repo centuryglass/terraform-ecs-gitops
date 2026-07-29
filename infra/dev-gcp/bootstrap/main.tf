@@ -1,6 +1,6 @@
 # Bootstraps the GCS bucket that holds Terraform state for the GCP "live demo"
-# stack (infra/dev-gcp). GCP-side analog of infra/bootstrap. Applied manually,
-# once — not part of CI. Re-run only if the state bucket needs to change.
+# stack (infra/dev-gcp). GCP-side analog of infra/prod-aws/bootstrap. Applied
+# manually, once, not part of CI. Re-run only if the state bucket needs to change.
 
 #----------------------------------------------------------
 # Basic config
@@ -65,6 +65,28 @@ resource "google_storage_bucket" "terraform_state" {
 #----------------------------------------------------------
 # Auto-generate backend.tf for the main stack on bootstrap
 #----------------------------------------------------------
+
+#----------------------------------------------------------
+# CI state access
+# The plan/apply service accounts (defined in the main stack's github-oidc.tf)
+# need read/write on this bucket for the Terraform GCS backend. Granting it here
+# — where the bucket lives — keeps the CI-applied main stack from having to
+# manage, and therefore read, this bucket's IAM policy. Referenced by
+# deterministic email since the SAs live in the other stack; apply this after
+# that stack has created them.
+#----------------------------------------------------------
+
+resource "google_storage_bucket_iam_member" "ci_plan_state" {
+  bucket = google_storage_bucket.terraform_state.name
+  role   = "roles/storage.objectUser"
+  member = "serviceAccount:gha-gcp-plan@${var.project_id}.iam.gserviceaccount.com"
+}
+
+resource "google_storage_bucket_iam_member" "ci_apply_state" {
+  bucket = google_storage_bucket.terraform_state.name
+  role   = "roles/storage.objectUser"
+  member = "serviceAccount:gha-gcp-apply@${var.project_id}.iam.gserviceaccount.com"
+}
 
 resource "local_file" "backend_config" {
   filename = "${path.module}/../backend.tf"

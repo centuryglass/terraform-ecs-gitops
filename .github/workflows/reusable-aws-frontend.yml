@@ -1,0 +1,46 @@
+# Reusable: deploy the static frontend to S3 + invalidate CloudFront. No
+# Terraform, no infra access.
+name: reusable-aws-frontend
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: GitHub Environment to run against.
+        required: true
+        type: string
+        default: prod
+
+permissions:
+  id-token: write  # AWS OIDC
+  contents: read
+
+jobs:
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.ROLE_FRONTEND }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Sync webapp to S3
+        run: |
+          aws s3 sync ./webapp/ s3://${{ vars.FRONTEND_BUCKET }}/ \
+            --delete \
+            --exclude "*.map"
+
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ vars.CLOUDFRONT_DIST_ID }} \
+            --paths "/*"

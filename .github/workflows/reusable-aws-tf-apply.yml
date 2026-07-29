@@ -1,5 +1,5 @@
-# Reusable: terraform apply for the GCP stack (rolls the Cloud Run revision).
-name: reusable-gcp-tf-apply
+# Reusable: terraform apply for the AWS stack (rolls the ECS service).
+name: reusable-aws-tf-apply
 
 on:
   workflow_call:
@@ -13,28 +13,24 @@ on:
         description: GitHub Environment to run against.
         required: true
         type: string
-        default: dev
+        default: prod
 
 permissions:
-  id-token: write  # WIF
+  id-token: write  # AWS OIDC
   contents: read
 
 jobs:
   apply:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
-    env:
-      # billing_account has no default (see variables.tf); locally it comes from
-      # terraform.tfvars (gitignored), in CI from the Environment.
-      TF_VAR_billing_account: ${{ vars.BILLING_ACCOUNT }}
     steps:
       - uses: actions/checkout@v4
 
-      - id: auth
-        uses: google-github-actions/auth@v2
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
-          service_account: ${{ vars.SA_APPLY }}
+          role-to-assume: ${{ vars.ROLE_APPLY }}
+          aws-region: ${{ vars.AWS_REGION }}
 
       - uses: hashicorp/setup-terraform@v3
         with:

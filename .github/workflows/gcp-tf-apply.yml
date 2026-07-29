@@ -1,0 +1,21 @@
+# Caller: on a dev-branch change to the GCP stack, terraform apply (rolls the
+# Cloud Run revision to the image bumped by the merged deploy PR).
+name: gcp-tf-apply
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'infra/dev-gcp/**'
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  call:
+    uses: ./.github/workflows/reusable-gcp-tf-apply.yml
+    with:
+      environment: dev
+    secrets: inherit

@@ -46,10 +46,29 @@ data "aws_iam_policy_document" "github_oidc_plan_assume" {
       variable = "token.actions.githubusercontent.com:aud"
       values   = ["sts.amazonaws.com"]
     }
+    # Because the plan job references `environment: prod`, GitHub rewrites the
+    # sub claim to the environment form (`...:environment:prod`), shared with the
+    # deploy roles. The event_name/base_ref claims that would distinguish a PR
+    # aren't exposed as IAM condition keys, so they can't scope this role.
+    #
+    # The real protection is job_workflow_ref, same as the deploy roles. That
+    # only works because the caller (aws-tf-plan.yml) references the reusable at
+    # @main rather than locally, so the credentialed steps run from trusted code
+    # and this claim resolves to @refs/heads/main even on a PR-triggered run.
+    # An attacker who rewrites the workflow in a PR gets @refs/pull/N/merge and
+    # is denied. (Untrusted PR *Terraform* still runs under `plan`; that residual
+    # risk is covered by required-reviewer protection on the prod environment.)
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["${var.github_oidc_subject_prefix}:pull_request"]
+      values   = ["${var.github_oidc_subject_prefix}:environment:prod"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:job_workflow_ref"
+      values = [
+        format("%s/.github/workflows/reusable-aws-tf-plan.yml@refs/heads/main", var.github_repo)
+      ]
     }
   }
 }
@@ -85,11 +104,15 @@ data "aws_iam_policy_document" "github_oidc_push_assume" {
       values   = ["sts.amazonaws.com"]
     }
 
+    # All four AWS reusables reference `environment: prod`, so the sub claim is
+    # the environment form for the deploy roles too (it no longer carries the
+    # branch). The branch pin comes from job_workflow_ref below, which ends in
+    # `@refs/heads/main` and only ever resolves that way on a push to main.
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
       values = [
-        "${var.github_oidc_subject_prefix}:ref:refs/heads/main"
+        "${var.github_oidc_subject_prefix}:environment:prod"
       ]
     }
 
@@ -97,7 +120,7 @@ data "aws_iam_policy_document" "github_oidc_push_assume" {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:job_workflow_ref"
       values = [
-        format("%s/.github/workflows/ci-build-push.yaml@refs/heads/main", var.github_repo)
+        format("%s/.github/workflows/reusable-aws-build-push.yml@refs/heads/main", var.github_repo)
       ]
     }
   }
@@ -169,7 +192,7 @@ data "aws_iam_policy_document" "github_oidc_frontend_deploy_assume" {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
       values = [
-        "${var.github_oidc_subject_prefix}:ref:refs/heads/main"
+        "${var.github_oidc_subject_prefix}:environment:prod"
       ]
     }
 
@@ -177,7 +200,7 @@ data "aws_iam_policy_document" "github_oidc_frontend_deploy_assume" {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:job_workflow_ref"
       values = [
-        format("%s/.github/workflows/push-frontend.yaml@refs/heads/main", var.github_repo)
+        format("%s/.github/workflows/reusable-aws-frontend.yml@refs/heads/main", var.github_repo)
       ]
     }
   }
@@ -251,7 +274,7 @@ data "aws_iam_policy_document" "github_oidc_apply_assume" {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
       values = [
-        "${var.github_oidc_subject_prefix}:ref:refs/heads/main"
+        "${var.github_oidc_subject_prefix}:environment:prod"
       ]
     }
 
@@ -259,7 +282,7 @@ data "aws_iam_policy_document" "github_oidc_apply_assume" {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:job_workflow_ref"
       values = [
-        format("%s/.github/workflows/infra-apply.yaml@refs/heads/main", var.github_repo)
+        format("%s/.github/workflows/reusable-aws-tf-apply.yml@refs/heads/main", var.github_repo)
       ]
     }
   }

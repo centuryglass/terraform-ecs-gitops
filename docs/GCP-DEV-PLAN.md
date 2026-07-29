@@ -64,7 +64,7 @@ See "Init commands" at the bottom for the exact sequence.
 
 ## Phase 1 — State backend bootstrap `infra/dev-gcp/bootstrap/`
 
-Mirror of `infra/bootstrap`:
+Mirror of `infra/prod-aws/bootstrap`:
 
 - `google_storage_bucket` for TF state — versioning on, uniform bucket-level
   access, `prevent_destroy`.
@@ -102,7 +102,7 @@ Providers `google` + `google-beta`, `var.project`, region `us-central1`.
 
 > **Deferred, not blocked:** Terraform *can* own this later. Generating
 > `firebase.json` via `local_file` would be trivial (we already do that kind of
-> file-gen in `infra/bootstrap`). The only genuinely fiddly part is uploading
+> file-gen in `infra/prod-aws/bootstrap`). The only genuinely fiddly part is uploading
 > static *content* as a `google_firebase_hosting_version` (per-file hash +
 > API populate), so content deploy stays on the CLI for now. Revisit if we
 > want the rewrite config under Terraform.

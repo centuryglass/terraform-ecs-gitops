@@ -1,0 +1,29 @@
+# Caller: on a PR into main touching the AWS stack, post a terraform plan.
+# (Note: the auto image-bump PR is opened with GITHUB_TOKEN and won't trigger
+# this — dispatch it manually against that branch. Human PRs trigger normally.)
+name: aws-tf-plan
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'infra/prod-aws/**'
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  call:
+    # Reference the reusable at @main, NOT locally (./...): a local ref is
+    # resolved from the PR's merge commit, so a PR could rewrite the credentialed
+    # steps and the OIDC job_workflow_ref would point at the attacker's ref
+    # (@refs/pull/N/merge). Pinning to @main freezes the credentialed logic to
+    # trusted code and makes job_workflow_ref resolve to @refs/heads/main, which
+    # the plan role's trust policy pins against.
+    uses: centuryglass/terraform-ecs-gitops/.github/workflows/reusable-aws-tf-plan.yml@main
+    with:
+      environment: prod
+    secrets: inherit

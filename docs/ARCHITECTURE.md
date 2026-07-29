@@ -3,16 +3,16 @@ NOTE: This document is to remain 100% human-authored, as writing it serves as a 
 
 ## Build pipeline
 
-1. Changes pushed to `main` that touch the dockerfile, stack file, or anything under src/, app/, or webapp/ trigger the "Build and Push" GitHub Action defined in `.github/workflows/ci-build-push.yaml`.
+1. Changes pushed to `main` that touch the dockerfile, stack file, or anything under src/, app/, or webapp/ trigger the "aws-build-push" GitHub Action defined in `.github/workflows/aws-build-push.yaml`.
 2. GitHub allocates a VM running 'ubuntu-latest' to run the build job, which then does the following:
     1a. IMAGE_TAG, BRANCH_NAME, and PREV_TAG environment variables are set for future use.
     1b. The job logs into Amazon ECR using OIDC and the waypoint-gha-push role. This step is done before the build to ensure we will actually be able to upload the build image.
     1c. To ensure the build has enough space to complete, several large toolsets that we don't need that are present in the VM are deleted. 
     1d. Docker buildx is used to compile the project and build a docker image. Dependencies and sources are built in separate stages, so that dependencies don't need to be rebuilt every time. Docker build files are cached in the GitHub Actions cache.
     1e. After the build succeeds, the image is tagged with the short commit hash and pushed to ECR.
-    1f. A PR is opened that sets or updates the build image defined in `infra/live/image.auto.tfvars`. This PR links to the diff between the previous and current deployed image.
-3. The automatic build PR's changes under `infra` would trigger the "Terraform Plan" action defined in `.github/workflows/infra-plan.yaml`, but GitHub-created PRs won't ever directly start other actions. Instead, a prompt will appear on the PR asking the user to start the job. When triggered, this runs `terraform plan` and posts the output to the PR. In this case, this mostly serves to confirm the infrastructure is still in a valid state in sync with current definitions.
-4. Once the build PR is merged, the "Terraform Apply" action defined in `.github/workflows/infra-apply.yaml` is triggered, updating the docker image tag connected to the ECS.
+    1f. A PR is opened that sets or updates the build image defined in `infra/prod-aws/image.auto.tfvars`. This PR links to the diff between the previous and current deployed image.
+3. The automatic build PR's changes under `infra` would trigger the "aws-tf-plan" action defined in `.github/workflows/aws-tf-plan.yaml`, but GitHub-created PRs won't ever directly start other actions. Instead, a prompt will appear on the PR asking the user to start the job. When triggered, this runs `terraform plan` and posts the output to the PR. In this case, this mostly serves to confirm the infrastructure is still in a valid state in sync with current definitions.
+4. Once the build PR is merged, the "aws-tf-apply" action defined in `.github/workflows/aws-tf-apply.yaml` is triggered, updating the docker image tag connected to the ECS.
 5. ECS starts up the new image container, waits for it to pass health checks, begins routing traffic to the new container, and shuts down the old one.
 
 If quick rollback is necessary, the automatic build PR can be reverted to switch back to the previous image. 
@@ -77,6 +77,3 @@ For a larger organization, a more comprehensive logging solution aggregating mul
 
 ### Load balancing: Amazon Application Load Balancer
 Load balancing at this scale really only requires routing traffic to the single container, and gracefully handling the transition when deploying updates. ALB handles that simply, but is versatile enough to support more complicated configurations in the future. Alternatives are really only relevant in niche cases that don't apply here.
-
----
-

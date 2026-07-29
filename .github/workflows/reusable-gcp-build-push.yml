@@ -77,6 +77,10 @@ jobs:
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
         with:
+          # Only ever commit the image bump. google-github-actions/auth writes
+          # a gha-creds-*.json federation config into the workspace, and without
+          # this the PR action would sweep it into the commit.
+          add-paths: ${{ vars.TF_DIR }}/image.auto.tfvars
           commit-message: "Deploy ${{ env.IMAGE_TAG }} to ${{ inputs.environment }} (GCP)"
           branch: deploy-gcp-${{ env.IMAGE_TAG }}
           base: ${{ env.BRANCH_NAME }}

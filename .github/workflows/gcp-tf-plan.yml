@@ -1,0 +1,23 @@
+# Caller: on a PR into dev touching the GCP stack, post a terraform plan.
+# (Note: the auto image-bump PR is opened with GITHUB_TOKEN and won't trigger
+# this — dispatch it manually against that branch. Human PRs trigger normally.)
+name: gcp-tf-plan
+
+on:
+  pull_request:
+    branches: [dev]
+    paths:
+      - 'infra/dev-gcp/**'
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  call:
+    uses: ./.github/workflows/reusable-gcp-tf-plan.yml
+    with:
+      environment: dev
+    secrets: inherit

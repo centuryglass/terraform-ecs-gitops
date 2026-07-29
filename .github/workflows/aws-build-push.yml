@@ -1,0 +1,30 @@
+# Caller: on a main-branch app/Dockerfile change, build + push to ECR and open
+# the image-bump PR. Logic lives in the reusable workflow.
+name: aws-build-push
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'Dockerfile'
+  workflow_dispatch:
+    inputs:
+      open_pr:
+        description: 'Open the deploy PR after pushing the image'
+        type: boolean
+        default: true
+
+# Caller must grant at least what the reusable needs (id-token for OIDC etc.).
+permissions:
+  id-token: write
+  contents: write
+  pull-requests: write
+
+jobs:
+  call:
+    uses: ./.github/workflows/reusable-aws-build-push.yml
+    with:
+      environment: prod
+      open_pr: ${{ github.event_name != 'workflow_dispatch' || inputs.open_pr }}
+    secrets: inherit

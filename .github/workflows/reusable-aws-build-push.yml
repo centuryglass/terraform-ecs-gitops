@@ -1,0 +1,120 @@
+# Reusable: build the app image, push to ECR, and open a PR that bumps the
+# ECS image tag. Called by a thin branch-keyed caller (aws-build-push).
+# All environment-specific config comes from the GitHub Environment passed in.
+name: reusable-aws-build-push
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: GitHub Environment holding the AWS config (roles, region, ECR repo).
+        required: true
+        type: string
+      open_pr:
+        description: Open the deploy PR after pushing the image.
+        required: false
+        type: boolean
+        default: true
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: GitHub Environment to run against.
+        required: true
+        type: string
+        default: prod
+      open_pr:
+        description: Open the deploy PR after pushing the image.
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  id-token: write       # AWS OIDC
+  contents: write       # push the deploy branch
+  pull-requests: write  # open the PR
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate variables
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          echo "IMAGE_TAG=${SHORT_SHA}" >> $GITHUB_ENV
+          echo "BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_ENV
+          echo "BRANCH_NAME=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
+          # Capture the currently-deployed tag (if any) before overwriting,
+          # so the PR body can link a diff between the two.
+          if [ -f "./${{ vars.TF_DIR }}/image.auto.tfvars" ]; then
+            PREV_TAG=$(grep -oP '(?<=image_tag = ")[^"]+' "./${{ vars.TF_DIR }}/image.auto.tfvars" || true)
+            echo "PREV_TAG=${PREV_TAG}" >> $GITHUB_ENV
+          fi
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.ROLE_PUSH }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build, tag, and push image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ env.ECR_REGISTRY }}/${{ vars.ECR_REPO }}:${{ env.IMAGE_TAG }}
+          build-args: |
+            GIT_SHA=${{ github.sha }}
+            IMAGE_TAG=${{ env.IMAGE_TAG }}
+            BUILD_TIME=${{ env.BUILD_TIME }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Update Terraform image variable
+        run: |
+          FILE="./${{ vars.TF_DIR }}/image.auto.tfvars"
+          if [ ! -f "$FILE" ]; then
+            echo 'image_tag = "${{ env.IMAGE_TAG }}"' > "$FILE"
+          elif grep -q '^image_tag[[:space:]]*=' "$FILE"; then
+            sed -i "s|^image_tag[[:space:]]*=.*|image_tag = \"${{ env.IMAGE_TAG }}\"|" "$FILE"
+          else
+            echo 'image_tag = "${{ env.IMAGE_TAG }}"' >> "$FILE"
+          fi
+
+      - name: Create Pull Request
+        if: github.event_name != 'workflow_dispatch' || inputs.open_pr
+        uses: peter-evans/create-pull-request@v6
+        with:
+          # Only ever commit the image bump — keeps the deploy PR scoped to the
+          # one line CI owns and prevents any stray workspace file from being
+          # swept into the commit. Mirrors the GCP build-push workflow.
+          add-paths: ${{ vars.TF_DIR }}/image.auto.tfvars
+          # No `token:` override — uses the default GITHUB_TOKEN, which can open
+          # PRs now that the repo allows Actions to create and approve them.
+          # This PR's `pull_request` event won't auto-trigger aws-tf-plan:
+          # GitHub doesn't fire workflows off GITHUB_TOKEN's own actions, to
+          # prevent recursive runs. Dispatch aws-tf-plan manually against this
+          # branch to get a plan comment before merging.
+          commit-message: "Deploy ${{ env.IMAGE_TAG }} to ${{ inputs.environment }} (AWS)"
+          branch: deploy-aws-${{ env.IMAGE_TAG }}
+          base: ${{ env.BRANCH_NAME }}
+          title: "Deploy ${{ env.IMAGE_TAG }} to ${{ inputs.environment }} (AWS)"
+          body: |
+            Bumps `image_tag` to `${{ env.IMAGE_TAG }}`.
+
+            ${{ env.PREV_TAG && format('**App changes:** {0}/{1}/compare/{2}...{3}', github.server_url, github.repository, env.PREV_TAG, env.IMAGE_TAG) || '_No previous deployed tag found, nothing to diff against._' }}
+
+            This PR won't get an automatic `terraform plan` comment — it's
+            opened with the default `GITHUB_TOKEN`, which doesn't trigger other
+            workflows. Run `aws-tf-plan` manually against this branch
+            (Actions → aws-tf-plan → Run workflow) before merging.
