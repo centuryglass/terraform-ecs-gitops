@@ -3,7 +3,7 @@ name: Terraform Plan
 on:
   pull_request:
     paths:
-      - 'infra/**'
+      - 'infra/live/**'
   workflow_dispatch: {}
 
 permissions:

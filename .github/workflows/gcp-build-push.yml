@@ -1,0 +1,24 @@
+# Caller: on a dev-branch app/Dockerfile change, build + push to Artifact
+# Registry and open the image-bump PR. Logic lives in the reusable workflow.
+name: gcp-build-push
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'app/**'
+      - 'Dockerfile'
+  workflow_dispatch: {}
+
+# Caller must grant at least what the reusable needs (id-token for WIF etc.).
+permissions:
+  id-token: write
+  contents: write
+  pull-requests: write
+
+jobs:
+  call:
+    uses: ./.github/workflows/reusable-gcp-build-push.yml
+    with:
+      environment: dev
+    secrets: inherit

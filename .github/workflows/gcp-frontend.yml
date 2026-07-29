@@ -1,0 +1,20 @@
+# Caller: on a dev-branch webapp change, deploy static frontend to Firebase.
+name: gcp-frontend
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'webapp/**'
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  call:
+    uses: ./.github/workflows/reusable-gcp-frontend.yml
+    with:
+      environment: dev
+    secrets: inherit

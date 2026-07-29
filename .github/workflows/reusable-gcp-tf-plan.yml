@@ -24,6 +24,10 @@ jobs:
   plan:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
+    env:
+      # billing_account has no default (see variables.tf); locally it comes from
+      # terraform.tfvars (gitignored), in CI from the Environment.
+      TF_VAR_billing_account: ${{ vars.BILLING_ACCOUNT }}
     steps:
       - uses: actions/checkout@v4
 
