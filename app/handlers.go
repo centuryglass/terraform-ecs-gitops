@@ -29,14 +29,13 @@ func buildHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func runtimeHandler(meta taskMetadata, hostname string, startTime time.Time, requestCount *int64) http.HandlerFunc {
+func runtimeHandler(meta runtimeMetadata, startTime time.Time, requestCount *int64) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]any{
-			"taskId":           meta.TaskID,
-			"availabilityZone": meta.AvailabilityZone,
-			"hostname":         hostname,
-			"uptimeSeconds":    int(time.Since(startTime).Seconds()),
-			"requestCount":     atomic.LoadInt64(requestCount),
+			"platform":      meta.Platform,
+			"fields":        meta.Fields,
+			"uptimeSeconds": int(time.Since(startTime).Seconds()),
+			"requestCount":  atomic.LoadInt64(requestCount),
 		})
 	}
 }

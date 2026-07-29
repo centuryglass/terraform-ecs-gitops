@@ -12,9 +12,10 @@
     <p>
       A fixture app for
       <a href="https://github.com/centuryglass/terraform-ecs-gitops">terraform-ecs-gitops</a>,
-      a reference implementation of a Terraform + ECS Fargate + GitOps deployment
-      pipeline. The infrastructure is the point: this page exists to prove it's
-      actually wired up correctly, end to end.
+      a reference implementation of a Terraform + GitOps deployment pipeline that
+      runs the same container on AWS (ECS Fargate) and GCP (Cloud Run). The
+      infrastructure is the point: this page exists to prove it's actually wired
+      up correctly, end to end.
     </p>
   </header>
 
@@ -33,11 +34,10 @@
       </dl>
 
       <h2>Runtime</h2>
-      <dl>
-        <dt>Task ID</dt><dd id="runtime-task-id">—</dd>
-        <dt>Availability zone</dt><dd id="runtime-az">—</dd>
-        <dt>Hostname</dt><dd id="runtime-hostname">—</dd>
-        <dt>Uptime</dt><dd id="runtime-uptime">—</dd>
+      <dl id="runtime-list">
+        <dt>Platform</dt><dd id="runtime-platform">—</dd>
+        <!-- platform-specific fields are injected here, before Uptime -->
+        <dt id="runtime-uptime-dt">Uptime</dt><dd id="runtime-uptime">—</dd>
         <dt>Requests served</dt><dd id="runtime-request-count">—</dd>
       </dl>
     </section>

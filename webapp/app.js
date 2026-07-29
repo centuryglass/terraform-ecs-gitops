@@ -45,18 +45,45 @@ async function loadBuildInfo() {
   } catch (err) {
     showError(
       `Backend unreachable — /api/build failed (${err.message}). ` +
-      "The routing chain from CloudFront through to the ECS task isn't working."
+      "The routing chain from the CDN edge through to the backend container isn't working."
     );
     renderOfflineState(document.getElementById("demo-container"));
+  }
+}
+
+// Platform + fields are static for a container's lifetime, so only rebuild the
+// injected rows when they actually change — which also means a rolling deploy
+// (new Cloud Run revision / new Fargate task) visibly updates here as traffic
+// shifts to the new container.
+let lastFieldsKey = "";
+
+function renderPlatformFields(platform, fields) {
+  const key = platform + "|" + fields.map((f) => `${f.label}=${f.value}`).join(",");
+  if (key === lastFieldsKey) return;
+  lastFieldsKey = key;
+
+  document.getElementById("runtime-platform").textContent = platform || "—";
+
+  const list = document.getElementById("runtime-list");
+  list.querySelectorAll(".runtime-field").forEach((n) => n.remove());
+
+  const uptimeDt = document.getElementById("runtime-uptime-dt");
+  for (const f of fields) {
+    const dt = document.createElement("dt");
+    dt.className = "runtime-field";
+    dt.textContent = f.label;
+    const dd = document.createElement("dd");
+    dd.className = "runtime-field";
+    dd.textContent = f.value || "—";
+    list.insertBefore(dt, uptimeDt);
+    list.insertBefore(dd, uptimeDt);
   }
 }
 
 async function pollRuntimeInfo() {
   try {
     const rt = await fetchJSON("/api/runtime");
-    document.getElementById("runtime-task-id").textContent = rt.taskId || "n/a (local)";
-    document.getElementById("runtime-az").textContent = rt.availabilityZone || "n/a (local)";
-    document.getElementById("runtime-hostname").textContent = rt.hostname;
+    renderPlatformFields(rt.platform, rt.fields || []);
     document.getElementById("runtime-uptime").textContent = formatUptime(rt.uptimeSeconds);
     document.getElementById("runtime-request-count").textContent = rt.requestCount;
     clearError();

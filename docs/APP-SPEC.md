@@ -106,12 +106,24 @@ if it depends on anything, a transient failure becomes an unhealthy task.
 **`GET /api/build`** — unauthenticated. Returns build-time facts compiled into
 the binary: image tag, commit SHA, build timestamp, Go version.
 
-**`GET /api/runtime`** — unauthenticated. Returns facts only the running task
-knows: task ID (short form), availability zone, hostname, process uptime,
-request count. Source these from the ECS task metadata endpoint at
-`$ECS_CONTAINER_METADATA_URI_V4` (Fargate injects this automatically; append
-`/task` for task-level data). **Degrade gracefully** when the variable is
-absent so the container still runs under plain `docker run` locally.
+**`GET /api/runtime`** — unauthenticated. Returns facts only the running
+container knows: a `platform` label plus an ordered `fields` array of
+`{label, value}` pairs whose contents depend on where it runs, followed by
+process uptime and request count. The container detects its platform from the
+markers each provider injects and reports that platform's genuinely useful
+identity facts:
+
+- **AWS ECS Fargate** (`ECS_CONTAINER_METADATA_URI_V4` present): task ID (short
+  form), availability zone, hostname — sourced from the ECS task metadata
+  endpoint (append `/task` for task-level data).
+- **GCP Cloud Run** (`K_SERVICE` present): service and revision from the
+  `K_SERVICE`/`K_REVISION` env vars, plus region and instance ID from the GCP
+  metadata server (`metadata.google.internal`, `Metadata-Flavor: Google`).
+
+**Degrade gracefully** when neither provider's markers are present — a bare
+`Local` platform with just the hostname — so the container still runs under
+plain `docker run` locally. Metadata-server lookups are best-effort: a field is
+omitted rather than fatal if its lookup fails.
 
 There is deliberately **no authentication.** The original app's login form
 existed to gate its data; this app has no data worth gating, and a login
