@@ -1,0 +1,42 @@
+# Reusable: terraform apply for the GCP stack (rolls the Cloud Run revision).
+name: reusable-gcp-tf-apply
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+
+permissions:
+  id-token: write  # WIF
+  contents: read
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.SA_APPLY }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        working-directory: ./${{ vars.TF_DIR }}
+        run: terraform init
+
+      - name: Terraform Apply
+        working-directory: ./${{ vars.TF_DIR }}
+        run: terraform apply -auto-approve -no-color
+
+      - name: Show outputs
+        working-directory: ./${{ vars.TF_DIR }}
+        run: terraform output

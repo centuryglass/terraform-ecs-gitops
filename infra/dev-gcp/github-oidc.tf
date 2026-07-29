@@ -115,6 +115,24 @@ resource "google_storage_bucket_iam_member" "gha_plan_state" {
   member = "serviceAccount:${google_service_account.gha_plan.email}"
 }
 
+# Required because the provider runs with user_project_override = true: every
+# API call attaches an X-Goog-User-Project header, and the API checks
+# serviceusage.services.use on that project. roles/viewer doesn't grant it.
+resource "google_project_iam_member" "gha_plan_serviceusage" {
+  project = var.project_id
+  role    = "roles/serviceusage.serviceUsageConsumer"
+  member  = "serviceAccount:${google_service_account.gha_plan.email}"
+}
+
+# plan refreshes google_billing_budget, a billing-ACCOUNT resource, so it needs
+# read access there too — read-only. (Same account-wide-scope caveat as the
+# apply SA's costsManager grant; see docs/TODO.md for the planned tightening.)
+resource "google_billing_account_iam_member" "gha_plan_billing_viewer" {
+  billing_account_id = var.billing_account
+  role               = "roles/billing.viewer"
+  member             = "serviceAccount:${google_service_account.gha_plan.email}"
+}
+
 #----------------------------------------------------------
 # Frontend SA — Firebase Hosting deploys only. Never touches infra.
 #----------------------------------------------------------
