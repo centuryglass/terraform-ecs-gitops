@@ -1,0 +1,85 @@
+# Reusable: build the app image, push to Artifact Registry, and open a PR that
+# bumps the Cloud Run image. Called by a thin branch-keyed caller (build-push).
+# All environment-specific config comes from the GitHub Environment passed in.
+name: reusable-gcp-build-push
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: GitHub Environment holding the GCP config (WIF provider, SAs, project, region).
+        required: true
+        type: string
+
+permissions:
+  id-token: write       # WIF
+  contents: write       # push the deploy branch
+  pull-requests: write  # open the PR
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate variables
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          echo "IMAGE_TAG=${SHORT_SHA}" >> $GITHUB_ENV
+          echo "BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_ENV
+          echo "BRANCH_NAME=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
+          IMAGE_BASE="${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT }}/${{ vars.AR_REPO }}/${{ vars.IMAGE_NAME }}"
+          echo "IMAGE_BASE=${IMAGE_BASE}" >> $GITHUB_ENV
+          # Previous image tag (suffix after the last ':') for the compare link.
+          if [ -f "./${{ vars.TF_DIR }}/image.auto.tfvars" ]; then
+            PREV_IMAGE=$(grep -oP '(?<=image = ")[^"]+' "./${{ vars.TF_DIR }}/image.auto.tfvars" || true)
+            echo "PREV_TAG=${PREV_IMAGE##*:}" >> $GITHUB_ENV
+          fi
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.SA_PUSH }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ vars.GCP_REGION }}-docker.pkg.dev --quiet
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build, tag, and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ env.IMAGE_BASE }}:${{ env.IMAGE_TAG }}
+          build-args: |
+            GIT_SHA=${{ github.sha }}
+            IMAGE_TAG=${{ env.IMAGE_TAG }}
+            BUILD_TIME=${{ env.BUILD_TIME }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Update Terraform image variable
+        run: |
+          echo "image = \"${{ env.IMAGE_BASE }}:${{ env.IMAGE_TAG }}\"" > "./${{ vars.TF_DIR }}/image.auto.tfvars"
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "Deploy ${{ env.IMAGE_TAG }} to ${{ inputs.environment }} (GCP)"
+          branch: deploy-gcp-${{ env.IMAGE_TAG }}
+          base: ${{ env.BRANCH_NAME }}
+          title: "Deploy ${{ env.IMAGE_TAG }} to ${{ inputs.environment }} (GCP)"
+          body: |
+            Bumps the Cloud Run image to `${{ env.IMAGE_TAG }}`.
+
+            ${{ env.PREV_TAG && format('**App changes:** {0}/{1}/compare/{2}...{3}', github.server_url, github.repository, env.PREV_TAG, env.IMAGE_TAG) || '_No previous deployed tag to diff against._' }}
+
+            This PR won't get an automatic `terraform plan` comment — it's opened
+            with the default `GITHUB_TOKEN`, which doesn't trigger other
+            workflows. Run the GCP plan workflow manually against this branch
+            before merging.
