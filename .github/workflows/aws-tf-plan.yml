@@ -17,7 +17,13 @@ permissions:
 
 jobs:
   call:
-    uses: ./.github/workflows/reusable-aws-tf-plan.yml
+    # Reference the reusable at @main, NOT locally (./...): a local ref is
+    # resolved from the PR's merge commit, so a PR could rewrite the credentialed
+    # steps and the OIDC job_workflow_ref would point at the attacker's ref
+    # (@refs/pull/N/merge). Pinning to @main freezes the credentialed logic to
+    # trusted code and makes job_workflow_ref resolve to @refs/heads/main, which
+    # the plan role's trust policy pins against.
+    uses: centuryglass/terraform-ecs-gitops/.github/workflows/reusable-aws-tf-plan.yml@main
     with:
       environment: prod
     secrets: inherit
