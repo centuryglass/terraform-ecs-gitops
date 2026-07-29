@@ -27,17 +27,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Dump OIDC token claims (payload only)
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const token = await core.getIDToken('sts.amazonaws.com');
-            // A JWT is header.payload.signature; decode only the payload.
-            const payload = JSON.parse(
-              Buffer.from(token.split('.')[1], 'base64url').toString('utf8')
-            );
-            core.info('OIDC token claims:\n' + JSON.stringify(payload, null, 2));
-
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
