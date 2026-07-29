@@ -41,28 +41,58 @@ resource "aws_cloudwatch_metric_alarm" "target_unhealthy" {
 # Cost guardrail
 #----------------------------------------------------------
 
+# Sized for a portfolio piece that sits at <$1/mo at rest, not a live
+# deployment. The one expensive mistake now is leaving the on-demand backend
+# (ALB + ECS + VPC endpoints, ~$69/mo ≈ ~$2.30/day) applied after a demo, so
+# the thresholds are tuned to catch that fast. FORECASTED matters most here:
+# it reacts to run-rate within ~a day, whereas monthly ACTUAL spend resets on
+# the 1st and accumulates slowly.
 resource "aws_budgets_budget" "monthly_cap" {
   name         = format("waypoint-monthly-cap%s", local.instance_suffix)
   budget_type  = "COST"
-  limit_amount = "100"
+  limit_amount = "5"
   limit_unit   = "USD"
   time_unit    = "MONTHLY"
 
+  # ~$2: at-rest is <$1, so this means something's running that shouldn't be.
   notification {
     comparison_operator        = "GREATER_THAN"
-    threshold                  = 30
+    threshold                  = 40
     threshold_type             = "PERCENTAGE"
     notification_type          = "ACTUAL"
     subscriber_email_addresses = [var.alert_email]
   }
 
+  # Run-rate says we'll blow the $5 cap — trips within ~a day of a forgotten backend.
   notification {
     comparison_operator        = "GREATER_THAN"
-    threshold                  = 50
+    threshold                  = 100
     threshold_type             = "PERCENTAGE"
     notification_type          = "FORECASTED"
     subscriber_email_addresses = [var.alert_email]
   }
+
+  # Hard signal: the month has actually exceeded the cap.
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 100
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "ACTUAL"
+    subscriber_email_addresses = [var.alert_email]
+  }
+}
+
+# Dedicated "backend left running" tripwire. At-rest daily cost is ~$0.02; a
+# running backend is ~$2.30/day, so a $1/day cap fires within a day of a
+# forgotten teardown — the fastest cheap signal AWS Budgets can give. Cost
+# budgets are free up to two, so this adds no charge.
+resource "aws_budgets_budget" "daily_tripwire" {
+  name         = format("waypoint-daily-tripwire%s", local.instance_suffix)
+  budget_type  = "COST"
+  limit_amount = "1"
+  limit_unit   = "USD"
+  time_unit    = "DAILY"
+
   notification {
     comparison_operator        = "GREATER_THAN"
     threshold                  = 100

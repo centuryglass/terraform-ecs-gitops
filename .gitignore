@@ -13,3 +13,4 @@ terraform.rc
 
 # Personal local config (see infra/live/terraform.tfvars header comment)
 infra/live/terraform.tfvars
+infra/dev-gcp/terraform.tfvars
