@@ -3,6 +3,7 @@
 #----------------------------------------------------------
 
 resource "aws_lb" "app" {
+  count              = var.backend_enabled ? 1 : 0
   name               = format("waypoint-alb%s", local.instance_suffix)
   internal           = true
   load_balancer_type = "application"
@@ -11,6 +12,7 @@ resource "aws_lb" "app" {
 }
 
 resource "aws_lb_target_group" "app" {
+  count       = var.backend_enabled ? 1 : 0
   name        = format("waypoint-alb-tg%s", local.instance_suffix)
   port        = var.container_port
   protocol    = "HTTP"
@@ -29,13 +31,14 @@ resource "aws_lb_target_group" "app" {
 }
 
 resource "aws_lb_listener" "http" {
-  load_balancer_arn = aws_lb.app.arn
+  count             = var.backend_enabled ? 1 : 0
+  load_balancer_arn = aws_lb.app[0].arn
   port              = 80
   protocol          = "HTTP"
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.app.arn
+    target_group_arn = aws_lb_target_group.app[0].arn
   }
 }
 
@@ -43,6 +46,7 @@ resource "aws_lb_listener" "http" {
 # want or need to route through it. TODO: this section seemed necessary on initial apply
 # but its presence seemed to break other applies performed after that one. Requires closer analysis.
 resource "aws_internet_gateway" "custom" {
+  count  = var.backend_enabled ? 1 : 0
   vpc_id = aws_vpc.custom.id
 
   tags = {
@@ -51,9 +55,10 @@ resource "aws_internet_gateway" "custom" {
 }
 
 resource "aws_cloudfront_vpc_origin" "alb" {
+  count = var.backend_enabled ? 1 : 0
   vpc_origin_endpoint_config {
     name                   = format("waypoint-alb-vpc-origin%s", local.instance_suffix)
-    arn                    = aws_lb.app.arn
+    arn                    = aws_lb.app[0].arn
     http_port              = 80
     https_port             = 443
     origin_protocol_policy = "http-only"
@@ -127,6 +132,31 @@ resource "aws_s3_bucket_policy" "frontend" {
   policy = data.aws_iam_policy_document.frontend_bucket_policy.json
 }
 
+# Force browsers to revalidate the static assets on every load. Without an
+# explicit Cache-Control, browsers apply *heuristic* caching (guessing a
+# freshness lifetime from Last-Modified) and serve a stale page even after a
+# CloudFront invalidation, because they never revalidate against the edge.
+#
+# `no-cache` = "store, but revalidate before use" — the browser sends a
+# conditional request and CloudFront answers with a cheap 304 when unchanged.
+# The ideal pattern (long-lived `immutable` caching for content-hashed asset
+# filenames) isn't available here: the frontend has no build step (APP-SPEC §2),
+# so nothing fingerprints app.js/index.css, and any of them can change in place
+# on a deploy. Uniform revalidation is the correct choice under that constraint.
+# This pairs with the deploy's CloudFront invalidation: this makes the browser
+# ask; the invalidation makes the edge answer with fresh content.
+resource "aws_cloudfront_response_headers_policy" "frontend_revalidate" {
+  name = format("waypoint-frontend-revalidate%s", local.instance_suffix)
+
+  custom_headers_config {
+    items {
+      header   = "Cache-Control"
+      value    = "no-cache"
+      override = true
+    }
+  }
+}
+
 # CloudFront distribution — S3 origin only for now, no /report* behavior yet:
 resource "aws_cloudfront_distribution" "app" {
   enabled             = true
@@ -139,33 +169,46 @@ resource "aws_cloudfront_distribution" "app" {
     origin_access_control_id = aws_cloudfront_origin_access_control.frontend.id
   }
 
-  origin {
-    domain_name = aws_lb.app.dns_name
-    origin_id   = "alb-backend"
+  # Backend origin only exists while the backend tier is up (var.backend_enabled).
+  # When it's off, the distribution keeps serving the S3 static site and /api/*
+  # falls through to the S3 default behavior (404 → the app's "backend
+  # unreachable" state).
+  dynamic "origin" {
+    for_each = var.backend_enabled ? [1] : []
+    content {
+      domain_name = aws_lb.app[0].dns_name
+      origin_id   = "alb-backend"
 
-    vpc_origin_config {
-      vpc_origin_id = aws_cloudfront_vpc_origin.alb.id
+      vpc_origin_config {
+        vpc_origin_id = aws_cloudfront_vpc_origin.alb[0].id
+      }
     }
   }
 
   default_cache_behavior {
-    target_origin_id       = "s3-frontend"
-    viewer_protocol_policy = "redirect-to-https"
-    allowed_methods        = ["GET", "HEAD"]
-    cached_methods         = ["GET", "HEAD"]
-    cache_policy_id        = "658327ea-f89d-4fab-a63d-7e88639e58f6" # AWS managed: CachingOptimized
+    target_origin_id           = "s3-frontend"
+    viewer_protocol_policy     = "redirect-to-https"
+    allowed_methods            = ["GET", "HEAD"]
+    cached_methods             = ["GET", "HEAD"]
+    cache_policy_id            = "658327ea-f89d-4fab-a63d-7e88639e58f6" # AWS managed: CachingOptimized
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.frontend_revalidate.id
   }
 
-  ordered_cache_behavior {
-    path_pattern           = "/api/*"
-    target_origin_id       = "alb-backend"
-    viewer_protocol_policy = "redirect-to-https"
-    allowed_methods        = ["GET", "HEAD"]
-    cached_methods         = ["GET", "HEAD"]
-    cache_policy_id        = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # AWS managed: CachingDisabled
-    # No origin_request_policy_id: there's no authenticated route, so nothing
-    # needs the Authorization header forwarded. Omitting it is the correct
-    # default — CloudFront forwards only what cache_policy_id specifies.
+  # /api/* behavior is paired with the backend origin above — present only while
+  # the backend tier is up.
+  dynamic "ordered_cache_behavior" {
+    for_each = var.backend_enabled ? [1] : []
+    content {
+      path_pattern           = "/api/*"
+      target_origin_id       = "alb-backend"
+      viewer_protocol_policy = "redirect-to-https"
+      allowed_methods        = ["GET", "HEAD"]
+      cached_methods         = ["GET", "HEAD"]
+      cache_policy_id        = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # AWS managed: CachingDisabled
+      # No origin_request_policy_id: there's no authenticated route, so nothing
+      # needs the Authorization header forwarded. Omitting it is the correct
+      # default — CloudFront forwards only what cache_policy_id specifies.
+    }
   }
 
   restrictions {

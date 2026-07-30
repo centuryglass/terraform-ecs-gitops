@@ -147,6 +147,21 @@ resource "google_project_iam_member" "gha_frontend_hosting" {
   member  = "serviceAccount:${google_service_account.gha_frontend.email}"
 }
 
+# Firebase Hosting's deploy "finalize" step validates the /api/** rewrite by
+# calling the Cloud Run Admin API (run.services.get) on the rewrite target, so
+# the frontend deploy needs read access to the `waypoint` service. Scoped to
+# just this service, not project-wide. Without it the deploy 403s at finalize:
+# "Permission 'run.services.get' denied on .../services/waypoint".
+# This MUST be codified here (not a one-off gcloud grant): service-level IAM
+# bindings are wiped when the Cloud Run service is recreated, which is why the
+# earlier manual grant disappeared.
+resource "google_cloud_run_v2_service_iam_member" "gha_frontend_run_viewer" {
+  name     = google_cloud_run_v2_service.app.name
+  location = google_cloud_run_v2_service.app.location
+  role     = "roles/run.viewer"
+  member   = "serviceAccount:${google_service_account.gha_frontend.email}"
+}
+
 #----------------------------------------------------------
 # Apply SA — infra CRUD for this stack. Scoped roles, no IAM self-modification.
 #----------------------------------------------------------

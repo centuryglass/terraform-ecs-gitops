@@ -18,6 +18,22 @@ variable "container_port" {
   default     = 8080
 }
 
+variable "backend_enabled" {
+  description = <<-EOT
+    On/off switch for the pay-per-hour backend tier: the ALB, the ECS/Fargate
+    service, the three interface VPC endpoints, and the CloudFront VPC origin +
+    /api/* behavior (~$69/mo running). false = the dormant ~$0/mo state — only
+    free/near-free resources remain, the static site still loads, and /api/*
+    calls surface the app's built-in "backend unreachable" state. Flip it in a
+    PR to spin the backend up or down through the GitOps apply.
+
+    NOTE: this is the *application* backend — unrelated to the Terraform state
+    backend configured in backend.tf.
+  EOT
+  type        = bool
+  default     = false
+}
+
 variable "github_repo" {
   description = "GitHub org/repo,used to scope the job_workflow_ref condition in the OIDC trust policies. That claim is unaffected by subject-claim customization (see github_oidc_subject_prefix) and always uses this plain owner/repo form."
   type        = string

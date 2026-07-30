@@ -77,7 +77,11 @@ resource "aws_ecs_task_definition" "app" {
   ])
 }
 
+# Gated by var.backend_enabled — this is the running Fargate task (~$9/mo). The
+# task definition above stays registered always (it's free); only the service
+# that actually runs a task toggles.
 resource "aws_ecs_service" "app" {
+  count           = var.backend_enabled ? 1 : 0
   name            = format("waypoint-service%s", local.instance_suffix)
   cluster         = aws_ecs_cluster.container_cluster.id
   task_definition = aws_ecs_task_definition.app.arn
@@ -91,7 +95,7 @@ resource "aws_ecs_service" "app" {
   }
 
   load_balancer {
-    target_group_arn = aws_lb_target_group.app.arn
+    target_group_arn = aws_lb_target_group.app[0].arn
     container_name   = format("waypoint%s", local.instance_suffix)
     container_port   = var.container_port
   }

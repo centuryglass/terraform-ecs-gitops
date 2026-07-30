@@ -1,4 +1,7 @@
-# Caller: on a dev-branch webapp change, deploy static frontend to Firebase.
+# Caller: on a dev-branch webapp or hosting-config change, deploy static
+# frontend to Firebase. firebase.json is included so hosting-config changes
+# (rewrites, cache headers) redeploy too — it lives at the repo root, not under
+# webapp/.
 name: gcp-frontend
 
 on:
@@ -6,6 +9,7 @@ on:
     branches: [dev]
     paths:
       - 'webapp/**'
+      - 'firebase.json'
   workflow_dispatch: {}
 
 permissions:

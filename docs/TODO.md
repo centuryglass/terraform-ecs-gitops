@@ -2,6 +2,7 @@
 
 ## Misc. tasks:
 - Budget permissions are very broadly scoped on both the AWS and GCP sides. For a personal project that's fine, but it wouldn't fly in a corporate environment. Consider making budget tracking something we only apply locally.
+- When the expensive AWS components are disabled the frontend stays up, and there's no real way to tell from the site itself if it's been deactivated intentionally or if something is wrong. This shouldn't be too hard to fix, maybe inject/remove something in the frontend to toggle it when the resource toggle changes?
 
 
 ## Improvement priorities:
