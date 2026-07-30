@@ -82,8 +82,12 @@ resource "aws_vpc_security_group_ingress_rule" "vpc_endpoints_https" {
   referenced_security_group_id = aws_security_group.ecs_service.id
 }
 
-# Interface endpoints: ECR API, ECR Docker registry, CloudWatch Logs
+# Interface endpoints: ECR API, ECR Docker registry, CloudWatch Logs.
+# Gated by var.backend_enabled — these are the ~$44/mo chunk and are only needed
+# while the Fargate task runs (no NAT, so image pulls + log writes flow through
+# them). The S3 *gateway* endpoint below is free and stays applied always.
 resource "aws_vpc_endpoint" "ecr_api" {
+  count               = var.backend_enabled ? 1 : 0
   vpc_id              = aws_vpc.custom.id
   service_name        = "com.amazonaws.${local.region}.ecr.api"
   vpc_endpoint_type   = "Interface"
@@ -95,6 +99,7 @@ resource "aws_vpc_endpoint" "ecr_api" {
 }
 
 resource "aws_vpc_endpoint" "ecr_dkr" {
+  count               = var.backend_enabled ? 1 : 0
   vpc_id              = aws_vpc.custom.id
   service_name        = "com.amazonaws.${local.region}.ecr.dkr"
   vpc_endpoint_type   = "Interface"
@@ -106,6 +111,7 @@ resource "aws_vpc_endpoint" "ecr_dkr" {
 }
 
 resource "aws_vpc_endpoint" "logs" {
+  count               = var.backend_enabled ? 1 : 0
   vpc_id              = aws_vpc.custom.id
   service_name        = "com.amazonaws.${local.region}.logs"
   vpc_endpoint_type   = "Interface"

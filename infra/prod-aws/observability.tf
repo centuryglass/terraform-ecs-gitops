@@ -17,7 +17,10 @@ resource "aws_sns_topic_subscription" "alerts_email" {
   endpoint  = var.alert_email
 }
 
+# Gated by var.backend_enabled — it monitors the ALB target group, which only
+# exists while the backend tier is up.
 resource "aws_cloudwatch_metric_alarm" "target_unhealthy" {
+  count               = var.backend_enabled ? 1 : 0
   alarm_name          = format("waypoint-target-unhealthy%s", local.instance_suffix)
   namespace           = "AWS/ApplicationELB"
   metric_name         = "HealthyHostCount"
@@ -29,8 +32,8 @@ resource "aws_cloudwatch_metric_alarm" "target_unhealthy" {
   treat_missing_data  = "breaching" # no data usually means something's badly wrong too
 
   dimensions = {
-    TargetGroup  = aws_lb_target_group.app.arn_suffix
-    LoadBalancer = aws_lb.app.arn_suffix
+    TargetGroup  = aws_lb_target_group.app[0].arn_suffix
+    LoadBalancer = aws_lb.app[0].arn_suffix
   }
 
   alarm_actions = [aws_sns_topic.alerts.arn]

@@ -1,7 +1,8 @@
-# alb_dns_name in outputs.tf: update description to note it's now internal-only
+# Internal ALB DNS name - not the deployed URL. Only resolves inside the VPC.
+# Kept for debugging. null when the backend tier is toggled off (var.backend_enabled).
 output "alb_dns_name" {
-  description = "Internal ALB DNS name - not the deployed URL. Only resolves inside the VPC. Kept for debugging."
-  value       = "http://${aws_lb.app.dns_name}"
+  description = "Internal ALB DNS name - not the deployed URL. Only resolves inside the VPC. Kept for debugging. null when the backend is off."
+  value       = var.backend_enabled ? "http://${aws_lb.app[0].dns_name}" : null
 }
 
 output "ecr_repository_url" {
@@ -29,7 +30,8 @@ output "private_subnet_ids" {
 }
 
 output "target_group_arn" {
-  value = aws_lb_target_group.app.arn
+  description = "null when the backend is off (var.backend_enabled)."
+  value       = var.backend_enabled ? aws_lb_target_group.app[0].arn : null
 }
 
 output "cloudfront_domain_name" {
