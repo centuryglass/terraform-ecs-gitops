@@ -3,7 +3,7 @@
 #----------------------------------------------------------
 
 resource "aws_lb" "app" {
-  count              = var.backend_enabled ? 1 : 0
+  count              = local.vpc_origin_alive ? 1 : 0
   name               = format("waypoint-alb%s", local.instance_suffix)
   internal           = true
   load_balancer_type = "application"
@@ -54,8 +54,22 @@ resource "aws_internet_gateway" "custom" {
   }
 }
 
+# Teardown ordering caveat: this origin can't be deleted while the distribution
+# below still references it (AWS returns 409 CannotDeleteEntityWhileInUse), and
+# Terraform does NOT order the distribution's in-place update (dropping the
+# origin) ahead of this destroy in a single apply — the delete races the update,
+# fails, and the run aborts before the update commits, so every retry re-wedges.
+# It also can't be fixed with a depends_on (the distribution references this
+# origin's id, so the reverse dependency would be a cycle).
+#
+# The fix is a two-apply teardown, driven by scripts/aws-safe-apply.sh (what CI's
+# aws-tf-apply runs): apply #1 sets retain_backend_origin=true, which keeps this
+# origin (and the ALB it points at, via local.vpc_origin_alive) alive while the
+# distribution — gated on backend_enabled alone — drops its reference; apply #2,
+# with retain_backend_origin back to false, deletes this now-orphaned origin
+# cleanly. A plain `terraform apply` on a backend_enabled=false diff will wedge.
 resource "aws_cloudfront_vpc_origin" "alb" {
-  count = var.backend_enabled ? 1 : 0
+  count = local.vpc_origin_alive ? 1 : 0
   vpc_origin_endpoint_config {
     name                   = format("waypoint-alb-vpc-origin%s", local.instance_suffix)
     arn                    = aws_lb.app[0].arn
