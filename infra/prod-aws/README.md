@@ -53,7 +53,16 @@ This stack is built to idle at roughly **$0/month** and only cost money while a 
 
 Toggle the backend the same GitOps way as any other change:
 - **To bring it online:** open a PR setting `backend_enabled = true` in `backend_enabled.auto.tfvars`. `aws-tf-plan` posts the list of resources to be created; merging runs `aws-tf-apply` and the backend is live within a few minutes (CloudFront propagation is the slow part).
-- **To take it back down:** set it to `false` the same way. The backend tier is destroyed and the stack returns to its dormant state.
+- **To take it back down:** set it to `false` the same way. The backend tier is destroyed and the stack returns to its dormant state. Deleting the CloudFront VPC origin has to happen in two phases (disassociate it from the distribution, *then* delete it), or AWS returns `409 CannotDeleteEntityWhileInUse` and the apply wedges — `aws-tf-apply` handles this automatically because it runs `scripts/aws-safe-apply.sh` rather than a bare `terraform apply`.
+
+For **local** applies, use the same wrapper so teardowns don't wedge:
+
+```bash
+AWS_PROFILE=devops-test scripts/aws-safe-apply.sh          # prompts before applying
+AWS_PROFILE=devops-test scripts/aws-safe-apply.sh -auto-approve
+```
+
+It inits, plans, prints the plan, and only splits into the two-phase apply when the plan actually deletes the VPC origin; otherwise it behaves like a normal `terraform apply`.
 
 While the backend is off, the static site still loads and the app surfaces its built-in "backend unreachable" state for `/api/*` calls. The `waypoint-daily-tripwire` and `waypoint-monthly-cap` budgets in `observability.tf` are sized to alert quickly if the backend is ever left running unintentionally.
 

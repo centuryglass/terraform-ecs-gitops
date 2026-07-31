@@ -34,6 +34,24 @@ variable "backend_enabled" {
   default     = false
 }
 
+variable "retain_backend_origin" {
+  description = <<-EOT
+    Teardown-ordering escape hatch — leave this false in committed config.
+
+    A CloudFront VPC origin can't be deleted while the distribution still
+    references it, and Terraform won't order the distribution's in-place update
+    (dropping the origin) ahead of the origin's destroy in a single apply, so a
+    plain `terraform apply` on a backend_enabled true->false diff wedges with
+    409 CannotDeleteEntityWhileInUse. scripts/aws-safe-apply.sh (and CI) work
+    around it with two applies: the first sets this true so the distribution
+    detaches from the VPC origin while the origin (and the ALB/IGW it needs)
+    stay alive; the second, with this back to false, deletes the now-orphaned
+    origin cleanly. See the note above aws_cloudfront_vpc_origin.alb in edge.tf.
+  EOT
+  type        = bool
+  default     = false
+}
+
 variable "github_repo" {
   description = "GitHub org/repo,used to scope the job_workflow_ref condition in the OIDC trust policies. That claim is unaffected by subject-claim customization (see github_oidc_subject_prefix) and always uses this plain owner/repo form."
   type        = string

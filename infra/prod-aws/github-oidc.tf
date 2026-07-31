@@ -434,6 +434,7 @@ data "aws_iam_policy_document" "github_apply_permissions" {
       "cloudfront:TagResource",
       "cloudfront:UntagResource",
       "cloudfront:ListTagsForResource",
+      "cloudfront:GetResponseHeadersPolicy",
     ]
     # CloudFront's Create* actions don't support resource-level scoping —
     # the resource doesn't exist yet at call time. "*" is the realistic

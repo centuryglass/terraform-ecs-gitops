@@ -34,16 +34,13 @@ jobs:
 
       - uses: hashicorp/setup-terraform@v3
         with:
-          terraform_wrapper: false
+          terraform_wrapper: false  # aws-safe-apply.sh parses raw `terraform show -json`
 
-      - name: Terraform Init
-        working-directory: ./${{ vars.TF_DIR }}
-        run: terraform init
-
-      - name: Terraform Apply
-        working-directory: ./${{ vars.TF_DIR }}
-        run: terraform apply -auto-approve -no-color
-
-      - name: Show outputs
-        working-directory: ./${{ vars.TF_DIR }}
-        run: terraform output
+      # Wrapper around `terraform apply` (init + plan + apply + outputs). When the
+      # plan tears down the CloudFront VPC origin it disassociates it from the
+      # distribution first, otherwise DeleteVpcOrigin 409s. See the script header
+      # and the note above aws_cloudfront_vpc_origin.alb in edge.tf.
+      - name: Terraform Apply (VPC-origin-safe)
+        env:
+          TF_DIR: ${{ vars.TF_DIR }}
+        run: bash scripts/aws-safe-apply.sh -auto-approve -no-color
